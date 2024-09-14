@@ -1,4 +1,4 @@
-import io, json, sqlite3, os, warnings, re, logging
+import io, json, sqlite3, os, re, logging, argparse
 
 def build_sql_create_statement(table_name: str, columns: str, primary_key:list=None) -> str:
     """Configure a create table query in SQL, which is the format of 
@@ -51,8 +51,6 @@ def execute(database:str, query:str):
     Returns:
         class 'sqlite3.Cursor': the outcome of SQL query exeuction
     """    
-    if re.search('.(sqlite|sqlite3|db|db3|s3db|sl3|sql)', database) is None:
-        warnings.warn("Sqlite database filename is recommended to end with .sqlite, .sqlite3, .db, .db3, .s3db, .sl3, .sql")
     try:
         conn = sqlite3.connect(database)
     except sqlite3.Error as e:
@@ -175,10 +173,12 @@ def build_table(filename:str, database:str):
             sys.exit(1)
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--schema', '-s', type=str)
+    args = parser.parse_args()
     LOGGER = logging.getLogger(__name__)
-    SCHEMA = 'lac_fullstack_dev'
 
     files = ['team.json', 'team_affiliate.json', 'game_schedule.json', 'player.json', 'lineup.json', 'roster.json']
     for file in files:
-        build_table(file, SCHEMA)
+        build_table(file, args.schema)
     
