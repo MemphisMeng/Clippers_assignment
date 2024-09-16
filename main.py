@@ -1,4 +1,4 @@
-import os, json, logging, sys
+import os, json, logging, sys, argparse
 from datetime import datetime
 from sqlalchemy.util import deprecations
 from sqlalchemy import create_engine, Table, Column, String, MetaData, Integer, BigInteger, DateTime, FLOAT
@@ -72,8 +72,8 @@ if __name__ == '__main__':
     }
     LOGGER = logging.getLogger(__name__)
     deprecations.SILENCE_UBER_WARNING = True
-    DB_URL = 'sqlite:///lac_fullstack_dev.db'
-    FILE_DIR = 'dev_test_data'
+    DB_URL = os.getenv('DB_URL')
+    FILE_DIR = os.getenv('FILE_DIR')
     engine = create_engine(DB_URL)
     metadata = MetaData(bind=engine)
     Session = sessionmaker(bind=engine)
