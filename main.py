@@ -141,7 +141,7 @@ def build_table(filename:str, database:str):
     tableName = filename.split('.')[0]
     if data:
         columns = ','.join(data[0].keys())
-        primaryKeys = [key for key in data[0].keys() if 'Id' in key]
+        primaryKeys = [key for key in data[0].keys() if 'id' in key.lower()]
         values = build_column_value_text(data)
 
         try:
