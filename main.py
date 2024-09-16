@@ -70,9 +70,18 @@ if __name__ == '__main__':
             "teamNickname": [String, False]
         }
     }
+
+    # Configure logger
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[logging.StreamHandler(sys.stdout)]
+    )
     LOGGER = logging.getLogger(__name__)
+
+    # sqlalchemy setting
     deprecations.SILENCE_UBER_WARNING = True
-    
+
     parser = argparse.ArgumentParser()
     parser.add_argument('--schema', '-s', type=str)
     parser.add_argument('--directory', '-d', type=str)
@@ -88,7 +97,7 @@ if __name__ == '__main__':
         if file.endswith('.json'):
             tableName = os.path.splitext(file)[0]
             filePath = os.path.join(FILE_DIR, file)
-            LOGGER.info(f"{'=' * 100}\nTransfering the data of {tableName} file...")
+            LOGGER.info(f"Transfering the data of {tableName} file...")
             
             with open(filePath, 'r') as file:
                 data = json.load(file)
@@ -104,18 +113,19 @@ if __name__ == '__main__':
             # CREATE TABLE IF NOT EXISTS
             if not engine.dialect.has_table(conn, tableName):
                 table.create(engine)
-            LOGGER.info(f"\nSuccessfully created the table {tableName}!")
+            LOGGER.info(f"Successfully created the table {tableName}!")
 
             # INSERT INTO table (col1, col2, ...) VALUES (?, ?, ...)
             batch = []
             for item in data:
                 converted_item = {key: convert(key, value) for key, value in item.items()}
                 batch.append(converted_item)
-            LOGGER.info(f"\nSuccessfully inserted a new data batch into the table {tableName}!")
+            LOGGER.info(f"Successfully inserted a new data batch into the table {tableName}!")
             
             conn.execute(table.insert(), batch)
             conn.close()
-            LOGGER.info(f"\nFinished transferring the data of {tableName} file!\n{'=' * 100}")
+            LOGGER.info(f"Finished transferring the data of {tableName} file!")
 
     session.commit()
     session.close()
+    LOGGER.critical("Completed the schema design!")
