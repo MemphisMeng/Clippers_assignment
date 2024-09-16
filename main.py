@@ -72,8 +72,13 @@ if __name__ == '__main__':
     }
     LOGGER = logging.getLogger(__name__)
     deprecations.SILENCE_UBER_WARNING = True
-    DB_URL = os.getenv('DB_URL')
-    FILE_DIR = os.getenv('FILE_DIR')
+    
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--schema', '-s', type=str)
+    parser.add_argument('--directory', '-d', type=str)
+    args = parser.parse_args()
+    DB_URL, FILE_DIR = args.schema, args.directory
+
     engine = create_engine(DB_URL)
     metadata = MetaData(bind=engine)
     Session = sessionmaker(bind=engine)

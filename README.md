@@ -10,7 +10,7 @@ This ingestion processor is containerized by Docker.
 ```
 cd directory/to/Clippers_assignment
 # claim a variable for the absolute path of the current working directory
-work_dir=your/absolute/path/to/Clippers_assignment
+work_dir=$(pwd)
 ```
 
 1. Build docker image:
@@ -20,7 +20,7 @@ docker build -t lac .
 
 2. Run docker image:
 ```
-docker run --name nba -v /$(pwd):$work_dir lac --schema $work_dir/lac_fullstack_dev
+docker run -v /$(pwd):$work_dir lac --schema sqlite:///$work_dir/lac_fullstack_dev.db --directory dev_test_data
 ```
 
 3. Expected result:
