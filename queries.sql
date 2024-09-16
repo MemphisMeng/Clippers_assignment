@@ -11,7 +11,7 @@ SELECT games_data.team,
        games_played,
        wins,
        losses,
-       ROUND((CAST(wins AS FLOAT) / games_played) * 100, 2) AS win_percentage
+       ROUND((CAST(wins AS REAL) / games_played) * 100, 2) AS win_percentage
 FROM (
     -- Calculate games played
     SELECT team,
@@ -76,14 +76,14 @@ SELECT games_data.team,
        RANK() OVER(ORDER BY away_games_played DESC) AS away_games_played_rank,
        wins,
        losses,
-       ROUND((CAST(wins AS FLOAT) / games_played) * 100, 2) AS win_percentage
+       ROUND((CAST(wins AS REAL) / games_played) * 100, 2) AS win_percentage
 FROM (
     -- Calculate games played
     SELECT A.team, home_games_played + away_games_played AS games_played, home_games_played, away_games_played
     FROM (
-    SELECT home_name AS team, COUNT(*) AS home_games_played FROM named_games GROUP BY 1
+    SELECT home_name AS team, COUNT(*) AS home_games_played FROM named_games GROUP BY home_name
     ) A
-    LEFT JOIN (SELECT away_name AS team, COUNT(*) AS away_games_played FROM named_games GROUP BY 1) B
+    LEFT JOIN (SELECT away_name AS team, COUNT(*) AS away_games_played FROM named_games GROUP BY away_name) B
     ON A.team = B.team
 ) AS games_data
 LEFT JOIN (
@@ -128,7 +128,6 @@ WITH home_games AS (
     FROM game_schedule gs
     JOIN team t1
     ON gs.home_id = t1.teamId
-    ORDER BY team_name, game_date
 ), home_b2b AS (
     SELECT g1.team_name, g1.game_date AS first_game_date, g2.game_date AS second_game_date
     FROM home_games g1
@@ -149,7 +148,6 @@ WITH away_games AS (
     FROM game_schedule gs
     JOIN team t1
     ON gs.away_id = t1.teamId
-    ORDER BY team_name, game_date
 ), away_b2b AS (
     SELECT g1.team_name, g1.game_date AS first_game_date, g2.game_date AS second_game_date
     FROM away_games g1
@@ -183,6 +181,7 @@ WITH named_games AS (
     FROM team_games
 ), rest_periods AS (
     SELECT g1.team_name, g1.game_date AS first_game_date, g2.game_date AS second_game_date,
+    -- DATE_DIFF(g2.game_date, g1.game_date) AS rest_days
     julianday(SUBSTR(g2.game_date, 1, INSTR(g2.game_date, ' ') - 1)) - julianday(SUBSTR(g1.game_date, 1, INSTR(g1.game_date, ' ') - 1)) AS rest_days
     FROM ordered_games g1
     JOIN ordered_games g2
@@ -225,7 +224,7 @@ WITH named_games AS (
 SELECT team_name, COUNT(*) AS three_in_four_count, RANK() OVER(ORDER BY COUNT(*) DESC) AS three_in_four_count_rank
 FROM game_windows
 GROUP BY team_name
-ORDER BY 2 DESC;
+ORDER BY COUNT(*) DESC;
 
 -- 4.a.
 WITH ordered_players AS (
@@ -247,7 +246,8 @@ CREATE TABLE IF NOT EXISTS stints AS -- for answering the next question more eas
 SELECT s.game_id, 
 CASE WHEN s.team_id = g.home_id THEN h.teamName ELSE a.teamName END AS team,
 CASE WHEN s.team_id = g.home_id THEN a.teamName ELSE h.teamName END AS opponent,
-printf('%s %s', p.first_name, p.last_name) AS player_name, s.period, 
+p.first_name || ' ' || p.last_name AS player_name,
+s.period, 
 RANK() OVER(PARTITION BY s.game_id, s.team_id, s.player_id ORDER BY stint_label) AS stint_number,
 printf('%02d:%02d', time_in / 60, time_in % 60) AS stint_start_time,
 printf('%02d:%02d', time_out / 60, time_out % 60) AS stint_end_time
@@ -275,10 +275,10 @@ ON p.player_id = s.player_id;
 -- 4.c.
 WITH basics AS (
     SELECT game_id, player_name, stint_number, 
-    (CAST(SUBSTR(stint_start_time, 1, INSTR(stint_start_time, ':') - 1) AS DOUBLE) * 60 +
-    CAST(SUBSTR(stint_start_time, INSTR(stint_start_time, ':')+1, LENGTH(stint_start_time)) AS DOUBLE)) - 
-    (CAST(SUBSTR(stint_end_time, 1, INSTR(stint_end_time, ':') - 1) AS DOUBLE) * 60 +
-    CAST(SUBSTR(stint_end_time, INSTR(stint_end_time, ':')+1, LENGTH(stint_end_time)) AS DOUBLE)) AS stint_length
+    (CAST(SUBSTR(stint_start_time, 1, INSTR(stint_start_time, ':') - 1) AS REAL) * 60 +
+    CAST(SUBSTR(stint_start_time, INSTR(stint_start_time, ':')+1, LENGTH(stint_start_time)) AS REAL)) - 
+    (CAST(SUBSTR(stint_end_time, 1, INSTR(stint_end_time, ':') - 1) AS REAL) * 60 +
+    CAST(SUBSTR(stint_end_time, INSTR(stint_end_time, ':')+1, LENGTH(stint_end_time)) AS REAL)) AS stint_length
     FROM stints
 ), calculation1 AS (
     SELECT game_id, player_name, 
@@ -315,10 +315,10 @@ WITH detailed_data AS (
     SELECT game_id, 
     CASE WHEN team_score > opponent_score THEN 'win' ELSE 'loss' END AS game_result,
     player_name, stint_number, 
-    (CAST(SUBSTR(stint_start_time, 1, INSTR(stint_start_time, ':') - 1) AS DOUBLE) * 60 +
-    CAST(SUBSTR(stint_start_time, INSTR(stint_start_time, ':')+1, LENGTH(stint_start_time)) AS DOUBLE)) - 
-    (CAST(SUBSTR(stint_end_time, 1, INSTR(stint_end_time, ':') - 1) AS DOUBLE) * 60 +
-    CAST(SUBSTR(stint_end_time, INSTR(stint_end_time, ':')+1, LENGTH(stint_end_time)) AS DOUBLE)) AS stint_length
+    (CAST(SUBSTR(stint_start_time, 1, INSTR(stint_start_time, ':') - 1) AS REAL) * 60 +
+    CAST(SUBSTR(stint_start_time, INSTR(stint_start_time, ':')+1, LENGTH(stint_start_time)) AS REAL)) - 
+    (CAST(SUBSTR(stint_end_time, 1, INSTR(stint_end_time, ':') - 1) AS REAL) * 60 +
+    CAST(SUBSTR(stint_end_time, INSTR(stint_end_time, ':')+1, LENGTH(stint_end_time)) AS REAL)) AS stint_length
     FROM detailed_data
 ), calculation1 AS (
     SELECT game_id, player_name, game_result,
