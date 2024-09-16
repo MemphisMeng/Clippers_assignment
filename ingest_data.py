@@ -1,26 +1,5 @@
 import io, json, sqlite3, os, re, logging, argparse, sys
 
-def build_sql_create_statement(table_name: str, columns: str, primary_key:list=None) -> str:
-    """Configure a create table query in SQL, which is the format of 
-    "CREATE TABLE IF NOT EXISTS {table_name} ({columns});"
-
-    Args:
-        table_name (str): the table name to be created.
-        columns (str): the column names to be included in the upcoming new table. No data types are required, column names have to be seperated by ", ".
-        primary_key (list, optional): column name of the primary key(s). Defaults to None.
-
-    Returns:
-        str: complete query
-    """    
-    __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
-    sql_raw_statement = open(
-        os.path.join(__location__, "queries/create.sql")
-    ).read()
-    if primary_key:
-        columns += f", PRIMARY KEY ({','.join(primary_key)})"
-    create_statement = sql_raw_statement.format(table_name=table_name, columns=columns)
-    return create_statement
-
 def build_sql_insert_statement(table_name: str, columns: str, values: str) -> str:
     """Configure an insert table query in SQL, which is the format of 
     "INSERT OR REPLACE INTO {table_name} ({columns}) VALUES {values};"
@@ -138,31 +117,16 @@ def build_table(filename:str, database:str):
     with open(filename, 'r') as file:
         data = json.load(file)
 
-    tableName = filename.split('.')[0]
+    tableName = filename.split('/')[1].split('.')[0]
     if data:
         columns = ','.join(data[0].keys())
-        primaryKeys = [key for key in data[0].keys() if 'id' in key.lower()]
         values = build_column_value_text(data)
-
-        try:
-            create_statement = build_sql_create_statement(tableName, columns, primaryKeys)
-            LOGGER.info(f"{tableName} table creation query was successfully created!")
-        except Exception as e:
-            LOGGER.error(f"Encountered error when building {tableName} table creation query, error detail: {e}")
-            sys.exit(1)
 
         try:
             insert_statement = build_sql_insert_statement(tableName, columns, values)
             LOGGER.info(f'{tableName} table insersion query was successfully created!')
         except Exception as e:
             LOGGER.error(f"Encountered error when building {tableName} table insersion query, error detail: {e}")
-            sys.exit(1)
-
-        try:
-            execute(database, create_statement)
-            print(f"{tableName} table was successfully created!")
-        except Exception as e:
-            print(f"Encountered error when creating {tableName} table, error detail: {e}")
             sys.exit(1)
 
         try:
@@ -178,8 +142,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
     LOGGER = logging.getLogger(__name__)
 
-    files = ['team.json', 'team_affiliate.json', 'game_schedule.json', 'player.json', 'lineup.json', 'roster.json']
-    for file in files:
-        print('dev_test_data/' + file)
+    for file in os.listdir('dev_test_data'):
         build_table('dev_test_data/' + file, args.schema)
     
