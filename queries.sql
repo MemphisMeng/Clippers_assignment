@@ -132,8 +132,9 @@ WITH home_games AS (
     SELECT g1.team_name, g1.game_date AS first_game_date, g2.game_date AS second_game_date
     FROM home_games g1
     JOIN home_games g2 ON g1.team_name = g2.team_name
-    WHERE julianday(SUBSTR(g2.game_date, 1, INSTR(g2.game_date, ' ') - 1)) - julianday(SUBSTR(g1.game_date, 1, INSTR(g1.game_date, ' ') - 1)) = 1
+    WHERE julianday(date(g2.game_date)) - julianday(date(g1.game_date)) = 1
 ), ranked_home_b2b AS (
+    -- more than one team had the most b2b home games (2)
     SELECT team_name, DENSE_RANK() OVER(ORDER BY COUNT(*) DESC) AS rank, COUNT(*) AS b2b_games
     FROM home_b2b
     GROUP BY team_name
@@ -152,8 +153,9 @@ WITH away_games AS (
     SELECT g1.team_name, g1.game_date AS first_game_date, g2.game_date AS second_game_date
     FROM away_games g1
     JOIN away_games g2 ON g1.team_name = g2.team_name
-    WHERE julianday(SUBSTR(g2.game_date, 1, INSTR(g2.game_date, ' ') - 1)) - julianday(SUBSTR(g1.game_date, 1, INSTR(g1.game_date, ' ') - 1)) = 1
+    WHERE julianday(date(g2.game_date)) - julianday(date(g1.game_date)) = 1
 ), ranked_away_b2b AS (
+    -- more than one team had the most b2b home games (2)
     SELECT team_name, DENSE_RANK() OVER(ORDER BY COUNT(*) DESC) AS rank, COUNT(*) AS b2b_games
     FROM away_b2b
     GROUP BY team_name
@@ -181,8 +183,7 @@ WITH named_games AS (
     FROM team_games
 ), rest_periods AS (
     SELECT g1.team_name, g1.game_date AS first_game_date, g2.game_date AS second_game_date,
-    -- DATE_DIFF(g2.game_date, g1.game_date) AS rest_days
-    julianday(SUBSTR(g2.game_date, 1, INSTR(g2.game_date, ' ') - 1)) - julianday(SUBSTR(g1.game_date, 1, INSTR(g1.game_date, ' ') - 1)) AS rest_days
+    julianday(date(g2.game_date)) - julianday(date(g1.game_date)) AS rest_days
     FROM ordered_games g1
     JOIN ordered_games g2
     ON g1.team_name = g2.team_name
@@ -210,16 +211,16 @@ WITH named_games AS (
     FROM named_games
 ), game_windows AS (
     SELECT g1.team_name, g1.game_date AS first_game_date, g2.game_date AS second_game_date, g3.game_date AS third_game_date,
-           julianday(SUBSTR(g3.game_date, 1, INSTR(g3.game_date, ' ') - 1)) - julianday(SUBSTR(g1.game_date, 1, INSTR(g1.game_date, ' ') - 1)) AS day_difference
+           julianday(date(g3.game_date)) - julianday(date(g1.game_date)) AS day_difference
     FROM team_games g1
     JOIN team_games g2 ON g1.team_name = g2.team_name AND g2.game_date > g1.game_date
     JOIN team_games g3 ON g2.team_name = g3.team_name AND g3.game_date > g2.game_date
     -- conditions:
     -- 1. the third game was 3 days behind the first game
     -- 2. the second game was 1 day behind the first game, or 1 day before the third game
-    WHERE julianday(SUBSTR(g3.game_date, 1, INSTR(g3.game_date, ' ') - 1)) - julianday(SUBSTR(g1.game_date, 1, INSTR(g1.game_date, ' ') - 1)) = 3
-    AND (julianday(SUBSTR(g2.game_date, 1, INSTR(g2.game_date, ' ') - 1)) - julianday(SUBSTR(g1.game_date, 1, INSTR(g1.game_date, ' ') - 1)) = 1
-    OR julianday(SUBSTR(g3.game_date, 1, INSTR(g3.game_date, ' ') - 1)) - julianday(SUBSTR(g2.game_date, 1, INSTR(g2.game_date, ' ') - 1)) = 1)
+    WHERE julianday(date(g3.game_date)) - julianday(date(g1.game_date)) = 3
+    AND (julianday(date(g2.game_date)) - julianday(date(g1.game_date)) = 1
+    OR julianday(date(g3.game_date)) - julianday(date(g2.game_date)) = 1)
 )
 SELECT team_name, COUNT(*) AS three_in_four_count, RANK() OVER(ORDER BY COUNT(*) DESC) AS three_in_four_count_rank
 FROM game_windows
@@ -336,4 +337,5 @@ ROUND(average_stint_length, 2) AS average_stint_length_this_game
 FROM calculation1
 JOIN calculation2 
 ON calculation1.player_name = calculation2.player_name
-AND calculation1.game_result = calculation2.game_result;
+AND calculation1.game_result = calculation2.game_result
+ORDER BY calculation1.game_result, calculation1.player_name;
