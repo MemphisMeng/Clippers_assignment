@@ -1,4 +1,4 @@
-import io, json, sqlite3, os, re, logging, argparse
+import io, json, sqlite3, os, re, logging, argparse, sys
 
 def build_sql_create_statement(table_name: str, columns: str, primary_key:list=None) -> str:
     """Configure a create table query in SQL, which is the format of 
@@ -180,5 +180,6 @@ if __name__ == '__main__':
 
     files = ['team.json', 'team_affiliate.json', 'game_schedule.json', 'player.json', 'lineup.json', 'roster.json']
     for file in files:
-        build_table(file, args.schema)
+        print('dev_test_data/' + file)
+        build_table('dev_test_data/' + file, args.schema)
     
