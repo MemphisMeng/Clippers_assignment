@@ -3,6 +3,7 @@ from datetime import datetime
 from sqlalchemy.util import deprecations
 from sqlalchemy import create_engine, Table, Column, String, MetaData, Integer, BigInteger, DateTime, FLOAT
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.exc import IntegrityError
 
 def convert(key, value):
     """Convert the raw data types to the expected
@@ -113,19 +114,27 @@ if __name__ == '__main__':
             # CREATE TABLE IF NOT EXISTS
             if not engine.dialect.has_table(conn, tableName):
                 table.create(engine)
-            LOGGER.info(f"Successfully created the table {tableName}!")
+                LOGGER.info(f"Successfully created the table {tableName}!")
+            else:
+                LOGGER.info(f"Table {tableName} already exists!")
 
             # INSERT INTO table (col1, col2, ...) VALUES (?, ?, ...)
             batch = []
             for item in data:
                 converted_item = {key: convert(key, value) for key, value in item.items()}
                 batch.append(converted_item)
-            LOGGER.info(f"Successfully inserted a new data batch into the table {tableName}!")
             
-            conn.execute(table.insert(), batch)
-            conn.close()
-            LOGGER.info(f"Finished transferring the data of {tableName} file!")
+            try:
+                conn.execute(table.insert(), batch)
+                LOGGER.info(f"Successfully inserted a new data batch into the table {tableName}!")
+                LOGGER.info(f"Finished transferring the data of {tableName} file!")
+            except IntegrityError as e:
+                LOGGER.error(f"Unique key constraint violation occurs when inserting data into table {tableName}!")
+                LOGGER.info(f"Aborted transferring the data of {tableName} file!")
+                continue
+            finally:
+                conn.close()
 
     session.commit()
     session.close()
-    LOGGER.critical("Completed the schema design!")
+    LOGGER.critical("Completed scanning the file directory!")
