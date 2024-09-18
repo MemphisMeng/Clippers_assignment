@@ -255,7 +255,7 @@ printf('%02d:%02d', time_out / 60, time_out % 60) AS stint_end_time
 FROM (
     SELECT game_id, team_id, player_id,
     lineup_num - player_lineup_order AS stint_label, period, 
-    MAX(time_in) AS time_in, MAX(time_out) AS time_out
+    MAX(time_in) AS time_in, MIN(time_out) AS time_out
     FROM (
         SELECT game_id, team_id, player_id, period, time_in, time_out, lineup_num, 
     RANK() OVER(PARTITION BY game_id, player_id ORDER BY lineup_num) AS player_lineup_order
