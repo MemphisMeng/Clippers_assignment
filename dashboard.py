@@ -17,9 +17,7 @@ def time_to_timedelta(time_str):
 st.set_page_config(layout="wide")
 st.markdown('# Clippers Team Management App')
 
-# @st.experimental_memo(ttl=60, persist="disk")
-def retrieve_data(query, conn=sqlite3.connect('lac_fullstack_dev.db')):
-    return pd.read_sql(calendar_query, conn)
+conn=sqlite3.connect('lac_fullstack_dev.db')
 
 # Initialize session state for user
 if 'user_state' not in st.session_state:
@@ -77,9 +75,10 @@ if st.session_state.user_state['logged_in']:
 
         gantt_query = """
         SELECT game_date, 
-        CASE WHEN gs.home_id = t.teamId THEN '@ ' || t.teamNameShort
-        ELSE 'vs ' || t.teamNameShort END AS game,
+        (CASE WHEN gs.home_id = t.teamId THEN '@ ' || t.teamNameShort
+        ELSE 'vs ' || t.teamNameShort END) || ' ' || date(game_date) AS game,
         r.first_name || ' ' || r.last_name AS player,
+        'Q' || CAST(period AS TEXT) AS quarter,
         printf('%02d%s', 
         12 * (4 - period) + CAST(SUBSTR(stint_start_time, 1, INSTR(stint_start_time, ':') - 1) AS REAL), 
         SUBSTR(stint_start_time, INSTR(stint_start_time, ':'), LENGTH(stint_start_time))) AS stint_start_time,
@@ -94,11 +93,10 @@ if st.session_state.user_state['logged_in']:
         JOIN team t
         ON t.teamName = s.opponent
         WHERE team = 'LA Clippers'
-        AND opponent = 'Miami Heat'
         """
 
-        calendar_df = retrieve_data(calendar_query)
-        gantt_df = retrieve_data(gantt_query)
+        calendar_df = pd.read_sql(calendar_query, conn)
+        gantt_df = pd.read_sql(gantt_query, conn)
 
         with col1:
             calendar_options = {
@@ -153,21 +151,37 @@ if st.session_state.user_state['logged_in']:
             calendar = calendar(events=calendar_events, options=calendar_options, custom_css=custom_css)
         with col2:
             # Apply conversion to start and end times
-            st.dataframe(gantt_df)
-            gantt_df['stint_start_time'] = gantt_df['stint_start_time'].apply(time_to_timedelta)
-            gantt_df['stint_end_time'] = gantt_df['stint_end_time'].apply(time_to_timedelta)
-            reference_date = datetime(2024, 1, 1)
-            gantt_df['stint_start_time'] = reference_date + gantt_df['stint_start_time']
-            gantt_df['stint_end_time'] = reference_date + gantt_df['stint_end_time']
+            option = st.selectbox(
+                "Select a game",
+                gantt_df.game.unique(),
+                index=None
+            )
+            # st.write(gantt_df['game_date'].loc[gantt_df['game'] == option].iloc[0])
+            filtered_df = gantt_df.loc[gantt_df['game'] == option]
+            filtered_df['game_date'] = pd.to_datetime(filtered_df['game_date'])
+            filtered_df['stint_start_time'] = filtered_df['stint_start_time'].apply(time_to_timedelta)
+            filtered_df['stint_end_time'] = filtered_df['stint_end_time'].apply(time_to_timedelta)
+            reference_date = filtered_df['game_date'].iloc[0]
+            filtered_df['stint_start_time'] = reference_date + filtered_df['stint_start_time']
+            filtered_df['stint_end_time'] = reference_date + filtered_df['stint_end_time']
 
-            fig = px.timeline(gantt_df, x_start='stint_start_time', x_end='stint_end_time', y='player')
+            fig = px.timeline(
+                filtered_df, 
+                x_start='stint_start_time', 
+                x_end='stint_end_time', 
+                y='player',
+                color='quarter',
+                category_orders={'quarter': ['Q1', 'Q2', 'Q3', 'Q4']},
+                )
             fig.update_layout(
                 xaxis_title="Time", yaxis_title="Player",
+                title="Stint in Game",
                 showlegend=True,
-                xaxis=dict(dtick=12, tickformat='%M:%S')
+                xaxis=dict(visible=False)
                 )
+    
             st.plotly_chart(fig, use_container_width=True)
     
     if st.button("Logout"):
         st.session_state.user_state['logged_in'] = False
-        st.experimental_rerun()  # Refresh the page after logging out
+        st.rerun()  # Refresh the page after logging out
