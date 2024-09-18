@@ -14,6 +14,9 @@ def time_to_timedelta(time_str):
     minutes, seconds = map(int, time_str.split(':'))
     return timedelta(minutes=48) - timedelta(minutes=minutes, seconds=seconds)
 
+def basketball_pythagorean(points_scored, points_allowed, power=16.5):
+    return pow(points_scored, power) / (pow(points_scored, power) + pow(points_allowed, power))
+
 st.set_page_config(layout="wide")
 st.markdown('# Clippers Team Management App')
 
@@ -57,9 +60,8 @@ if not st.session_state.user_state['logged_in']:
 # Once logged in, replace the login screen with the new content
 if st.session_state.user_state['logged_in']:
     st.markdown(f"## Welcome {st.session_state.user_state['username']}!")
+    col1, col2 = st.columns(2)
     if st.session_state.user_state['user_type'] == 'coach':
-        col1, col2 = st.columns(2)
-
         calendar_query = """
         select 
         CASE WHEN h.teamNameShort = 'LAC' THEN 'vs ' || a.teamNameShort
@@ -181,6 +183,77 @@ if st.session_state.user_state['logged_in']:
                 )
     
             st.plotly_chart(fig, use_container_width=True)
+        
+    elif st.session_state.user_state['user_type'] == 'analyst':
+        points_query = """
+        SELECT date(game_date) AS game_date,
+        'LAC' AS team,
+        CASE WHEN h.teamNameShort = 'LAC' THEN h.teamNameShort ELSE a.teamNameShort END AS teamSpec,
+        CASE WHEN h.teamNameShort = 'LAC' THEN gs.home_score ELSE gs.away_score END AS points
+        FROM game_schedule gs
+        JOIN team h
+        ON gs.home_id = h.teamId
+        JOIN team a
+        ON gs.away_id = a.teamId
+        WHERE h.teamNameShort = 'LAC' OR a.teamNameShort = 'LAC'
+        UNION ALL
+        SELECT date(game_date) AS game_date,
+        'Opponent' AS team,
+        CASE WHEN h.teamNameShort = 'LAC' THEN a.teamNameShort ELSE h.teamNameShort END AS teamSpec,
+        CASE WHEN h.teamNameShort = 'LAC' THEN gs.away_score ELSE gs.home_score END AS points
+        FROM game_schedule gs
+        JOIN team h
+        ON gs.home_id = h.teamId
+        JOIN team a
+        ON gs.away_id = a.teamId
+        WHERE h.teamNameShort = 'LAC' OR a.teamNameShort = 'LAC'
+        """
+
+        pythagorean_query = """
+        SELECT date(game_date) AS game_date,
+        'LAC' AS team,
+        CASE WHEN h.teamNameShort = 'LAC' THEN gs.home_score ELSE gs.away_score END AS points_scored,
+        CASE WHEN h.teamNameShort = 'LAC' THEN gs.away_score ELSE gs.home_score END AS points_allowed
+        FROM game_schedule gs
+        JOIN team h
+        ON gs.home_id = h.teamId
+        JOIN team a
+        ON gs.away_id = a.teamId
+        WHERE h.teamNameShort = 'LAC' OR a.teamNameShort = 'LAC'
+        """
+
+        points_df = pd.read_sql(points_query, conn)
+        pythagorean_df = pd.read_sql(pythagorean_query, conn)
+
+        with col1:
+            pythagorean_df[['total_points_scored', 'total_points_allowed']] = pythagorean_df[['points_scored', 'points_allowed']].cumsum()
+            pythagorean_df['win_ratio'] = pythagorean_df.apply(lambda x: 100.0 * basketball_pythagorean(x.total_points_scored, x.total_points_allowed), axis=1)
+
+            fig1 = px.line(
+                pythagorean_df, x="game_date", y="win_ratio"
+            )
+            fig1.update_layout(
+                xaxis_title="Game Date", yaxis_title="Winning Percentage%",
+                title="Pythagorean Winning Percentage %",
+                showlegend=True
+                )
+            st.plotly_chart(fig1, use_container_width=True)
+            st.markdown("""
+            Formula: *Pythagorean (Expected) Winning Percentage Formula=(Points Scored)16.5/[Points Scored)16.5 + (Points Allowed)16.5)]* ([source](https://nbastuffer.com/analytics101/pythagorean-winning-percentage/))
+            """)
+
+            fig2 = px.bar(
+                points_df, x="game_date", y="points", color="team", barmode="group",
+                hover_data=["game_date", "teamSpec", "points"]
+            )
+            fig2.update_layout(
+                xaxis_title="Game Date", yaxis_title="Points Scored/Allowed",
+                title="Points Scored/Allowed in January, 2024",
+                showlegend=True,
+                legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01)
+                )
+            
+            st.plotly_chart(fig2, use_container_width=True)
     
     if st.button("Logout"):
         st.session_state.user_state['logged_in'] = False
