@@ -155,8 +155,7 @@ if st.session_state.user_state['logged_in']:
             # Apply conversion to start and end times
             option = st.selectbox(
                 "Select a game",
-                gantt_df.game.unique(),
-                index=None
+                gantt_df.game.unique()
             )
             # st.write(gantt_df['game_date'].loc[gantt_df['game'] == option].iloc[0])
             filtered_df = gantt_df.loc[gantt_df['game'] == option]
@@ -254,6 +253,69 @@ if st.session_state.user_state['logged_in']:
                 )
             
             st.plotly_chart(fig2, use_container_width=True)
+        with col2:
+            st.markdown("### Amount of time for Players Playing on Court Together")
+            lac_games_query = """
+            select game_id, 
+            (CASE WHEN h.teamNameShort = 'LAC' THEN 'vs ' || a.teamNameShort ELSE '@ ' || h.teamNameShort END) || ' ' || date(game_date) AS game 
+            from game_schedule gs
+            JOIN team h
+            ON gs.home_id = h.teamId
+            JOIN team a
+            ON gs.away_id = a.teamId
+            WHERE h.teamNameShort = 'LAC' OR a.teamNameShort = 'LAC'
+            """
+            lac_games_df = pd.read_sql(lac_games_query, conn)
+            game_option = st.selectbox(
+                "Select a game",
+                lac_games_df.game.unique()
+            )
+
+            roster_query = """
+            select player_id, first_name || ' ' || last_name AS player_name 
+            from roster r
+            join team t
+            on r.team_id = t.teamId
+            where t.teamNameShort = 'LAC'
+            """
+            roster_df = pd.read_sql(roster_query, conn)
+            player_options = st.multiselect(
+                "Select players",
+                roster_df.player_name.unique(),
+                max_selections=5
+            )
+
+            game_id = lac_games_df['game_id'].loc[lac_games_df['game'] == game_option].iloc[0]
+            player_ids = roster_df['player_id'].loc[roster_df['player_name'].isin(player_options)].tolist()
+
+            on_court_query = f"""
+            select sum(time_per_quarter) AS total_time_on_court
+            from (
+            select period, max(time_in) - min(time_out) as time_per_quarter
+            from (
+            select period, lineup_num, MIN(time_in) AS time_in, MAX(time_out) AS time_out
+            from lineup
+            where game_id = {game_id}
+            and team_id = 1610612746
+            and player_id in ({','.join([str(player_id) for player_id in player_ids])})
+            group by period, lineup_num
+            HAVING COUNT(lineup_num) = {len(player_ids)}
+            ) AS cte1
+            group by period) AS cte2;
+            """
+            total_time = pd.read_sql(on_court_query, conn)['total_time_on_court'].iloc[0]
+
+            if total_time:
+                st.metric(label=f"""
+                In total, they played on court together:
+                """,
+                value=f"{str(int(total_time // 60)).zfill(2)}:{str(int(total_time % 60)).zfill(2)}")
+            else:
+                st.metric(label=f"""
+                In total, they played on court together:
+                """,
+                value="00:00")
+
     
     if st.button("Logout"):
         st.session_state.user_state['logged_in'] = False
