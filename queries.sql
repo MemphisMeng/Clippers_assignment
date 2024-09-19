@@ -66,6 +66,7 @@ WITH named_games AS (
     ON gs.home_id = t1.teamId
     JOIN team t2
     ON gs.away_id = t2.teamId
+    WHERE strftime('%m', game_date) = '01'
 )
 SELECT games_data.team,
        games_played,
@@ -111,9 +112,7 @@ LEFT JOIN (
         SELECT home_name AS team
         FROM named_games
         WHERE home_score < away_score
-        
         UNION ALL
-        
         SELECT away_name AS team
         FROM named_games
         WHERE away_score < home_score
@@ -221,11 +220,12 @@ WITH named_games AS (
     WHERE julianday(date(g3.game_date)) - julianday(date(g1.game_date)) = 3
     AND (julianday(date(g2.game_date)) - julianday(date(g1.game_date)) = 1
     OR julianday(date(g3.game_date)) - julianday(date(g2.game_date)) = 1)
-)
-SELECT team_name, COUNT(*) AS three_in_four_count, RANK() OVER(ORDER BY COUNT(*) DESC) AS three_in_four_count_rank
+), rank_tbl AS(SELECT team_name, COUNT(*) AS three_in_four_count, RANK() OVER(ORDER BY COUNT(*) DESC) AS three_in_four_count_rank
 FROM game_windows
 GROUP BY team_name
-ORDER BY COUNT(*) DESC;
+ORDER BY COUNT(*) DESC)
+SELECT team_name, three_in_four_count
+FROM rank_tbl WHERE three_in_four_count_rank = 1;
 
 -- 4.a.
 WITH ordered_players AS (
@@ -338,4 +338,11 @@ FROM calculation1
 JOIN calculation2 
 ON calculation1.player_name = calculation2.player_name
 AND calculation1.game_result = calculation2.game_result
-ORDER BY calculation1.game_result, calculation1.player_name;
+UNION ALL
+SELECT game_id, calculation1.player_name, 'all' AS game_result,
+ROUND(average_stints, 2) AS average_stints_per_game,
+ROUND(average_stint_length, 2) AS average_stint_length_this_game
+FROM calculation1
+JOIN calculation2 
+ON calculation1.player_name = calculation2.player_name
+ORDER BY game_result, game_id, calculation1.player_name;
