@@ -87,8 +87,8 @@ if st.session_state.user_state['logged_in']:
         printf('%02d%s', 
         12 * (4 - period) + CAST(SUBSTR(stint_end_time, 1, INSTR(stint_end_time, ':') - 1) AS REAL),
         SUBSTR(stint_end_time, INSTR(stint_end_time, ':'), LENGTH(stint_end_time))) AS stint_end_time
-        FROM roster r
-        LEFT JOIN stints s
+        FROM stints s
+        JOIN roster r
         ON player_name = r.first_name || ' ' || r.last_name
         JOIN game_schedule gs
         ON gs.game_id = s.game_id
