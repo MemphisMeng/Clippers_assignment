@@ -19,7 +19,7 @@ docker build -t lac .
 
 1. Run docker image:
 ```
-docker run -v /$(pwd):$work_dir lac
+docker run -v /$(pwd):$work_dir -p 8501:8501 lac
 ```
 
 1. Expected result:
