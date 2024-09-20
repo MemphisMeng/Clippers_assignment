@@ -1,14 +1,11 @@
 # Clippers_assignment
 
 ## Prerequisite
-To understand better my approach, please set up applications by running the 2 provided Dockerfile respectively.
+To understand better my approach, please set up applications by running the provided Dockerfile. This application is designed to create the data tables as required and transfer the data from the provided JSON files. On the top of the database, there is a web-app visualizing its data.
 
 **Requirement**: [Docker Desktop](https://www.docker.com/products/docker-desktop/)
 
-### Database
-This application is designed to create the data tables as required and transfer the data from the provided JSON files. The orchestration is scripted in `Dockerfile_DB`.
-
-0. Get in this working directory
+1. Get in this working directory
 ```
 cd directory/to/Clippers_assignment
 # claim a variable for the absolute path of the current working directory
@@ -17,33 +14,18 @@ work_dir=$(pwd)
 
 1. Build docker image:
 ```
-docker build -t lac_db --file Dockerfile_DB .
+docker build -t lac .
 ```
 
-2. Run docker image:
+1. Run docker image:
 ```
-docker run -v /$(pwd):$work_dir lac_db --schema sqlite:///$work_dir/lac_fullstack_dev.db --directory dev_test_data
-```
-
-3. Expected result:
-You are supposed to see a file named "lac_fullstack_dev.db" created in the current working directory. To verify, please run `sqlite3 $work_dir/lac_fullstack_dev` and you'll see a dialog waiting for you to type in.
-
-### Dashboard
-This application creates a **streamlit**-based web application for basketball sport intelligence. The orchestration is scripted in `Dockerfile_Dashboard`.
-
-1. Build docker image:
-   In the same working directory, run
-```
-docker build -t lac_app --file Dockerfile_Dashboard .
-```
-
-1. Run docker image after making sure the port 8501 on your device is not in use:
-```
-docker run -p 8501:8501 lac_app
+docker run -v /$(pwd):$work_dir lac
 ```
 
 1. Expected result:
-You are supposed to activate and visit the app on the localhost. The login/home page is shown as below:
+You are supposed to see a file named "lac_fullstack_dev.db" created in the current working directory where there are required tables and a custom one called "stints". To verify, please run `sqlite3 $work_dir/lac_fullstack_dev` and you'll see a dialog waiting for you to type in.
+
+Moreoever, you are supposed to activate and visit the app on the localhost. The login/home page is shown as below:
 ![alt text](./resources/homepage.png)
 
 ## Rationale behind the Approaches

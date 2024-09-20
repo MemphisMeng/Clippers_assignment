@@ -1,6 +1,0 @@
-FROM python:3.8.20 as main
-WORKDIR /dashboard
-COPY . /dashboard//
-RUN pip install poetry
-RUN poetry install
-CMD ["poetry", "run", "streamlit", "run", "dashboard.py"]

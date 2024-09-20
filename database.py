@@ -1,4 +1,4 @@
-import os, json, logging, sys, argparse
+import os, json, logging, sys
 from datetime import datetime
 from sqlalchemy.util import deprecations
 from sqlalchemy import create_engine, Table, Column, String, MetaData, Integer, BigInteger, DateTime, FLOAT
@@ -83,21 +83,15 @@ if __name__ == '__main__':
     # sqlalchemy setting
     deprecations.SILENCE_UBER_WARNING = True
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--schema', '-s', type=str)
-    parser.add_argument('--directory', '-d', type=str)
-    args = parser.parse_args()
-    DB_URL, FILE_DIR = args.schema, args.directory
-
-    engine = create_engine(DB_URL)
+    engine = create_engine('sqlite:///lac_fullstack_dev.db')
     metadata = MetaData(bind=engine)
     Session = sessionmaker(bind=engine)
     session = Session()
 
-    for file in os.listdir(FILE_DIR):
+    for file in os.listdir('dev_test_data'):
         if file.endswith('.json'):
             tableName = os.path.splitext(file)[0]
-            filePath = os.path.join(FILE_DIR, file)
+            filePath = os.path.join('dev_test_data', file)
             LOGGER.info(f"Transfering the data of {tableName} file...")
             
             with open(filePath, 'r') as file:
